@@ -1787,7 +1787,11 @@
         if (mode === 'spiral') this._s = { iter: 0, cx: W / 2, cy: H / 2, rMax: Math.min(W, H) / 2 - 20 };
         if (mode === 'bloom') this._s = { sc: 0 };
         if (mode === 'descent') this._s = { x: W / 2, prevX: W / 2, y: 12 };
-        if (mode === 'sieve') this._s = { cols: Math.max(1, Math.floor(W / 13)) };
+        if (mode === 'sieve') {
+          let cols = Math.max(3, Math.floor(W / 13));
+          while (!isPrime(cols)) cols++;
+          this._s = { cols };
+        }
         if (mode === 'collatz') this._s = { last: null, ic: 0 };
       }
       onStep(d) {
