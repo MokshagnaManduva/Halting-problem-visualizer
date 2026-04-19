@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Halting Problem — Escape Room</title>
+  <meta name="description"
+    content="7 escape room levels teaching the Halting Problem through live flowchart simulation and generative art. Ends in a live diagonalization proof.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080c14;
+      --surface: rgba(255, 255, 255, 0.035);
+      --surface2: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.09);
+      --border2: rgba(255, 255, 255, 0.15);
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --dim: #334155;
+      --faint: #1e2a3a;
+      --accent: #22c55e;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+      --r: 12px
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      overflow: hidden
+    }
+
+    body {
+      background-image: radial-gradient(circle, rgba(255, 255, 255, .04) 1px, transparent 1px);
+      background-size: 28px 28px;
+      background-color: var(--bg)
+    }
+
+    /* ── INTRO ─────────────────────────────────────────────────── */
+    #intro {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px
+    }
+
+    #intro.gone {
+      display: none
+    }
+
+    #ibg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22
+    }
+
+    .ibadge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(34, 197, 94, .3);
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 22px;
+      position: relative
+    }
+
+    .ititle {
+      font-size: clamp(38px, 6vw, 64px);
+      font-weight: 800;
+      line-height: 1.08;
+      margin-bottom: 14px;
+      position: relative
+    }
+
+    .ititle span {
+      background: linear-gradient(135deg, #fff, rgba(255, 255, 255, .45));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .ititle em {
+      -webkit-text-fill-color: var(--accent);
+      font-style: normal;
+      font-weight: 300
+    }
+
+    .isub {
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.75;
+      margin-bottom: 28px;
+      position: relative
+    }
+
+    .itags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 32px;
+      position: relative
+    }
+
+    .itag {
+      padding: 3px 11px;
+      background: rgba(255, 255, 255, .05);
+      border-radius: 5px;
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--dim)
+    }
+
+    .istart {
+      padding: 16px 52px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: .2s;
+      box-shadow: 0 0 40px rgba(34, 197, 94, .45);
+      position: relative
+    }
+
+    .istart:hover {
+      filter: brightness(1.12);
+      transform: scale(1.02)
+    }
+
+    /* ── TOP BAR ────────────────────────────────────────────────── */
+    #topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 14px;
+      background: rgba(8, 12, 20, .92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100
+    }
+
+    #app-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--accent);
+      white-space: nowrap
+    }
+
+    #lvl-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 13px;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600
+    }
+
+    .adot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      transition: background .4s, box-shadow .4s;
+      flex-shrink: 0
+    }
+
+    .tsep {
+      flex: 1
+    }
+
+    #timer {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    #streak-wrap {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap
+    }
+
+    #streak-num {
+      font-family: var(--mono);
+      font-weight: 700;
+      color: #f59e0b
+    }
+
+    #sb-toggle {
+      padding: 5px 13px;
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--muted);
+      transition: .2s
+    }
+
+    #sb-toggle:hover {
+      background: rgba(255, 255, 255, .1);
+      color: var(--text)
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────────────── */
+    #layout {
+      display: grid;
+      grid-template-columns: 40fr 30fr 30fr;
+      gap: 14px;
+      padding: 68px 14px 14px;
+      height: 100vh;
+      overflow: hidden
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      backdrop-filter: blur(10px)
+    }
+
+    /* Art center panel – panel itself never scrolls */
+    #art-panel {
+      overflow: hidden
+    }
+
+    .phdr {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .phdr-tag {
+      font-size: 9px;
+      font-family: var(--mono);
+      background: rgba(255, 255, 255, .06);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--dim);
+      font-weight: 400;
+      letter-spacing: .04em
+    }
+
+    /* ── FLOWCHART PANEL ─────────────────────────────────────────── */
+    #fc-canvas {
+      flex: 1;
+      width: 100%;
+      display: block;
+      min-height: 0;
+      cursor: grab
+    }
+
+    #exec-bar {
+      padding: 9px 16px;
+      display: flex;
+      gap: 0;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, .25)
+    }
+
+    .estat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      padding: 0 6px;
+      border-right: 1px solid var(--border)
+    }
+
+    .estat:last-child {
+      border-right: none
+    }
+
+    .estat-lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--dim);
+      font-weight: 600
+    }
+
+    .estat-val {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent)
+    }
+
+    /* ── ART PANEL ───────────────────────────────────────────────── */
+    /* Canvas: flex:1 fills remaining panel height above the info box */
+    #art-canvas {
+      flex: 1;
+      width: 100%;
+      display: block;
+      min-height: 180px
+    }
+
+    #art-info {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, .28);
+      min-height: 115px;
+    }
+
+    #art-mode-name {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 5px
+    }
+
+    #art-live {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 7px;
+      min-height: 16px;
+      line-height: 1.4
+    }
+
+    #art-explain {
+      font-size: 13.5px;
+      color: #94a3b8;
+      line-height: 1.65
+    }
+
+    #export-art {
+      margin: 8px 14px;
+      padding: 8px;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: .2s;
+      flex-shrink: 0
+    }
+
+    #export-art.show {
+      display: flex
+    }
+
+    #export-art:hover {
+      background: rgba(255, 255, 255, .09);
+      color: var(--text);
+      border-color: var(--accent)
+    }
+
+    /* ── RIGHT PANEL ─────────────────────────────────────────────── */
+    #right {
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, .08) transparent
+    }
+
+    #right::-webkit-scrollbar {
+      width: 3px
+    }
+
+    #right::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, .1)
+    }
+
+    #lvl-intro {
+      padding: 16px 16px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    #lvl-num {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 5px
+    }
+
+    #lvl-name {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 9px;
+      line-height: 1.2
+    }
+
+    #backstory {
+      font-size: 15px;
+      line-height: 1.68;
+      color: var(--muted)
+    }
+
+    /* Code block */
+    #prog-wrap {
+      margin: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, .45)
+    }
+
+    #prog-header {
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, .04);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .phdot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%
+    }
+
+    #prog-display {
+      display: block;
+      padding: 11px 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.85;
+      color: #94a3b8;
+      white-space: pre;
+      overflow-x: auto
+    }
+
+    /* Prediction */
+    #pred-section {
+      padding: 13px 16px
+    }
+
+    #pred-prompt {
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 10px;
+      font-weight: 600
+    }
+
+    .pred-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px
+    }
+
+    .pbtn {
+      padding: 14px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .03);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      line-height: 1.2
+    }
+
+    .pbtn .pi {
+      font-size: 20px
+    }
+
+    .pbtn .psub {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400
+    }
+
+    .pbtn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, .08);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, .2)
+    }
+
+    .pbtn.sel-h {
+      border-color: #22c55e !important;
+      background: rgba(34, 197, 94, .1) !important;
+      color: #22c55e
+    }
+
+    .pbtn.sel-l {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, .1) !important;
+      color: #ef4444
+    }
+
+    .pbtn:disabled {
+      opacity: .4;
+      cursor: default;
+      transform: none !important
+    }
+
+    /* Speed row */
+    #speed-row {
+      padding: 0 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    #speed-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap
+    }
+
+    #speed-sl {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer
+    }
+
+    #speed-sl::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent)
+    }
+
+    #speed-val {
+      font-size: 11px;
+      color: var(--accent);
+      font-family: var(--mono);
+      width: 52px;
+      text-align: right
+    }
+
+    #speed-hint {
+      font-size: 10px;
+      color: var(--dim);
+      padding: 0 16px 10px;
+      margin-top: -4px
+    }
+
+    /* Run button */
+    #run-btn {
+      display: block;
+      width: calc(100% - 28px);
+      margin: 0 14px 12px;
+      padding: 13px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: .2s;
+      box-shadow: 0 0 24px rgba(34, 197, 94, .3)
+    }
+
+    #run-btn:hover:not(:disabled) {
+      filter: brightness(1.12);
+      transform: translateY(-1px)
+    }
+
+    #run-btn:disabled {
+      opacity: .4;
+      cursor: default;
+      transform: none
+    }
+
+    #run-btn.hidden {
+      display: none
+    }
+
+    /* Result card */
+    #result-card {
+      margin: 0 14px 12px;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      display: none
+    }
+
+    #result-card.show {
+      display: block;
+      animation: siR .4s ease
+    }
+
+    #result-card.ok {
+      border-color: #22c55e;
+      background: rgba(34, 197, 94, .07)
+    }
+
+    #result-card.bad {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, .07)
+    }
+
+    #result-verdict {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 3px;
+      letter-spacing: .02em
+    }
+
+    .ok #result-verdict {
+      color: #22c55e
+    }
+
+    .bad #result-verdict {
+      color: #ef4444
+    }
+
+    #result-actual {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-family: var(--mono)
+    }
+
+    #result-teach {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--muted)
+    }
+
+    #next-btn {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    #next-btn:hover {
+      background: rgba(255, 255, 255, .12);
+      border-color: rgba(255, 255, 255, .2)
+    }
+
+    @keyframes siR {
+      from {
+        opacity: 0;
+        transform: translateX(14px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    /* ── LEVEL 7 ─────────────────────────────────────────────────── */
+    #diag-wrap {
+      display: none
+    }
+
+    #diag-wrap.show {
+      display: block
+    }
+
+    .dstep {
+      padding: 11px 16px;
+      border-left: 3px solid transparent;
+      transition: .3s
+    }
+
+    .dstep.active {
+      border-left-color: var(--accent);
+      background: rgba(255, 255, 255, .03)
+    }
+
+    .dsnum {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 2px
+    }
+
+    .dstitle {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 3px
+    }
+
+    .dsdesc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5
+    }
+
+    #rule-area {
+      padding: 4px 14px 8px
+    }
+
+    .rule-item {
+      padding: 9px 11px;
+      margin-bottom: 5px;
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: .2s;
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      user-select: none;
+      line-height: 1.4
+    }
+
+    .rule-item:hover {
+      background: rgba(255, 255, 255, .07)
+    }
+
+    .rule-item.sel {
+      border-color: var(--accent);
+      background: rgba(255, 255, 255, .06)
+    }
+
+    .rnum {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--dim);
+      width: 14px;
+      flex-shrink: 0;
+      margin-top: 1px
+    }
+
+    .rtxt {
+      flex: 1
+    }
+
+    .rcheck {
+      width: 14px;
+      flex-shrink: 0;
+      color: var(--accent);
+      font-size: 15px;
+      opacity: 0
+    }
+
+    .rule-item.sel .rcheck {
+      opacity: 1
+    }
+
+    #sel-count {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 0 14px 6px;
+      font-family: var(--mono)
+    }
+
+    #build-btn {
+      display: block;
+      width: calc(100% - 28px);
+      margin: 4px 14px 10px;
+      padding: 11px;
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    #build-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, .1)
+    }
+
+    #build-btn:disabled {
+      opacity: .4;
+      cursor: default
+    }
+
+    #proof-box {
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 2.2;
+      display: none;
+      border-top: 1px solid var(--border)
+    }
+
+    #proof-box.show {
+      display: block
+    }
+
+    .pline {
+      opacity: 0;
+      transition: opacity .5s;
+      color: var(--muted)
+    }
+
+    .pline.key {
+      color: var(--text);
+      font-weight: 600
+    }
+
+    .pline.contra {
+      color: #ef4444;
+      font-weight: 700
+    }
+
+    .pline.vis {
+      opacity: 1
+    }
+
+    #esc-wrap {
+      padding: 14px;
+      display: none
+    }
+
+    #esc-btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    #esc-btn:hover {
+      filter: brightness(1.12)
+    }
+
+    /* ── SCOREBOARD ───────────────────────────────────────────────── */
+    #scoreboard {
+      position: fixed;
+      top: 54px;
+      right: 0;
+      bottom: 0;
+      width: 240px;
+      background: rgba(8, 12, 20, .97);
+      border-left: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      transform: translateX(100%);
+      transition: transform .3s ease;
+      z-index: 90;
+      overflow-y: auto;
+      padding: 18px 16px
+    }
+
+    #scoreboard.open {
+      transform: translateX(0)
+    }
+
+    .sb-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px
+    }
+
+    .sb-item {
+      margin-bottom: 16px
+    }
+
+    .sb-lbl {
+      font-size: 12px;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 3px
+    }
+
+    .sb-val {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text)
+    }
+
+    .sb-fooled {
+      font-size: 13px;
+      color: #ef4444;
+      line-height: 2
+    }
+
+    .sb-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0
+    }
+
+    /* ── PORTRAIT ─────────────────────────────────────────────────── */
+    #portrait {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 12, 20, .99);
+      z-index: 200;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 70px;
+      overflow-y: auto
+    }
+
+    #portrait.show {
+      display: flex
+    }
+
+    #p-title {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 800;
+      margin: 18px 0 8px;
+      text-align: center;
+      letter-spacing: -.02em
+    }
+
+    #p-sub {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.75;
+      max-width: 480px
+    }
+
+    /* Stats row — big numbers like screenshot */
+    #p-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      max-width: 660px;
+      width: 100%;
+      margin-bottom: 30px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden
+    }
+
+    .pstat {
+      text-align: center;
+      background: rgba(255, 255, 255, .025);
+      padding: 20px 12px;
+      border-right: 1px solid var(--border)
+    }
+
+    .pstat:last-child {
+      border-right: none
+    }
+
+    .pstat-v {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800;
+      font-family: var(--mono);
+      color: var(--text);
+      line-height: 1
+    }
+
+    .pstat-v.accent {
+      color: #22c55e
+    }
+
+    .pstat-l {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-top: 6px;
+      font-weight: 600
+    }
+
+    #portrait-canvas {
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 0 60px rgba(0, 0, 0, .6)
+    }
+
+    #p-caption {
+      font-size: 12px;
+      font-style: italic;
+      color: var(--muted);
+      text-align: center;
+      margin: 16px 0 0;
+      max-width: 480px;
+      line-height: 1.7
+    }
+
+    #turing-quote {
+      margin-top: 20px;
+      max-width: 480px;
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+      border-left: 3px solid var(--accent);
+      padding-left: 16px;
+      line-height: 1.8
+    }
+
+    #exp-portrait {
+      margin-top: 28px;
+      padding: 14px 44px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: .2s;
+      box-shadow: 0 0 30px rgba(34, 197, 94, .3)
+    }
+
+    #exp-portrait:hover {
+      filter: brightness(1.12);
+      transform: translateY(-1px)
+    }
+
+    /* Mobile */
+    @media(max-width:768px) {
+
+      html,
+      body {
+        overflow: auto
+      }
+
+      #layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+        padding-bottom: 80px
+      }
+
+      .panel {
+        min-height: 280px
+      }
+
+      #fc-canvas,
+      #art-canvas {
+        height: 240px
+      }
+
+      #scoreboard {
+        top: auto;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        height: 55vh;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        transform: translateY(100%)
+      }
+
+      #scoreboard.open {
+        transform: translateY(0)
+      }
+
+      #p-stats {
+        grid-template-columns: 1fr 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- INTRO -->
+  <div id="intro">
+    <canvas id="ibg"></canvas>
+    <h1 class="ititle"><span>The Halting<br><em>Problem</em></span></h1>
+    <p class="isub">No algorithm can decide whether an arbitrary program halts.<br>7 levels. Progressive deception. One
+      live proof that breaks your own halt detector.</p>
+    <div class="itags">
+      <span class="itag">7 Levels</span><span class="itag">Generative Art</span>
+      <span class="itag">Live Flowcharts</span><span class="itag">Diagonalization Proof</span>
+    </div>
+    <button class="istart" id="start-btn">Enter the Escape Room →</button>
+  </div>
+
+  <!-- TOP BAR -->
+  <header id="topbar">
+    <div id="app-title">Halting Problem</div>
+    <div id="lvl-badge">
+      <div class="adot" id="adot"></div><span id="lvl-badge-txt">Level 1 — The Warm-Up</span>
+    </div>
+    <div class="tsep"></div>
+    <div id="timer">00:00</div>
+    <div id="streak-wrap">🔥 Streak: <span id="streak-num">0</span></div>
+    <button id="sb-toggle" onclick="toggleSB()">📊 Stats</button>
+  </header>
+
+  <!-- MAIN LAYOUT -->
+  <main id="layout">
+    <!-- LEFT: Flowchart -->
+    <div class="panel">
+      <div class="phdr">Flowchart Execution <span class="phdr-tag" id="fc-node-tag">node: START</span></div>
+      <canvas id="fc-canvas"></canvas>
+      <div id="exec-bar">
+        <div class="estat">
+          <div class="estat-lbl">Steps</div>
+          <div class="estat-val" id="stat-steps">0</div>
+        </div>
+        <div class="estat">
+          <div class="estat-lbl">Register x</div>
+          <div class="estat-val" id="stat-reg">—</div>
+        </div>
+        <div class="estat">
+          <div class="estat-lbl">Status</div>
+          <div class="estat-val" id="stat-status">Ready</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: Art + Description (scrollable panel) -->
+    <div class="panel" id="art-panel">
+      <div class="phdr" style="flex-shrink:0">Execution Signature <span class="phdr-tag" id="art-tag">—</span></div>
+      <div id="art-canvas-wrap"
+        style="flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; min-height: 0;">
+        <canvas id="art-canvas" style="display: block; min-width: 100%; cursor: auto;"></canvas>
+      </div>
+      <div id="art-info">
+        <div id="art-mode-name">—</div>
+        <div id="art-live">Run simulation to generate art</div>
+        <div id="art-explain">—</div>
+      </div>
+      <button id="export-art" onclick="exportArt()">⬇ Export PNG</button>
+    </div>
+
+    <!-- RIGHT: Level details -->
+    <div class="panel" id="right">
+      <div class="phdr">Level Details</div>
+
+      <!-- Standard (levels 1–6) -->
+      <div id="std-wrap">
+        <div id="lvl-intro">
+          <div id="lvl-num">Level 1 of 7</div>
+          <div id="lvl-name">—</div>
+          <div id="backstory">—</div>
+        </div>
+        <div id="prog-wrap">
+          <div id="prog-header">
+            <div class="phdot" style="background:#ef4444"></div>
+            <div class="phdot" style="background:#f59e0b"></div>
+            <div class="phdot" style="background:#22c55e"></div>
+            <span id="prog-title">program.x</span>
+          </div>
+          <code id="prog-display"></code>
+        </div>
+        <div id="pred-section">
+          <div id="pred-prompt">What happens when this program runs?</div>
+          <div class="pred-row">
+            <button class="pbtn" id="pbtn-h" onclick="predict('halts')">
+              <span class="pi">⏹</span>HALTS
+              <span class="psub">terminates</span>
+            </button>
+            <button class="pbtn" id="pbtn-l" onclick="predict('loops')">
+              <span class="pi">∞</span>LOOPS
+              <span class="psub">runs forever</span>
+            </button>
+          </div>
+        </div>
+        <div id="speed-row">
+          <span id="speed-lbl">Speed:</span>
+          <input type="range" id="speed-sl" min="0" max="3" value="1" oninput="updSpeed()">
+          <span id="speed-val">Normal</span>
+        </div>
+        <div id="speed-hint">← Drag to change speed even mid-simulation</div>
+        <button id="run-btn" class="hidden" onclick="runSim()">▶ Run Simulation</button>
+        <div id="result-card">
+          <div id="result-verdict">—</div>
+          <div id="result-actual"></div>
+          <div id="result-teach"></div>
+          <button id="next-btn" onclick="nextLevel()">Next Level →</button>
+        </div>
+      </div>
+
+      <!-- Level 7 -->
+      <div id="diag-wrap">
+        <div style="padding:15px 16px;border-bottom:1px solid var(--border)">
+          <div
+            style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:5px">
+            Level 7 of 7</div>
+          <div style="font-size:21px;font-weight:800;margin-bottom:8px">The Undecidable</div>
+          <div style="font-size:12px;line-height:1.68;color:var(--muted)">You've survived six programs by being clever.
+            Now build your own halt detector. We'll show you exactly why it cannot exist.</div>
+        </div>
+        <div id="dsteps">
+          <div class="dstep active" id="ds1">
+            <div class="dsnum">Step 1</div>
+            <div class="dstitle">Build Your Detector</div>
+            <div class="dsdesc">Select up to 5 rules for your detector H(P,x). Each rule you select becomes a node in
+              the D program flowchart.</div>
+          </div>
+          <div class="dstep" id="ds2">
+            <div class="dsnum">Step 2</div>
+            <div class="dstitle">Meet Program D</div>
+            <div class="dsdesc">D uses your exact rules — then does the opposite of whatever H says.</div>
+          </div>
+          <div class="dstep" id="ds3">
+            <div class="dsnum">Step 3</div>
+            <div class="dstitle">Run D on Itself</div>
+            <div class="dsdesc">D(D): the contradiction becomes visible.</div>
+          </div>
+          <div class="dstep" id="ds4">
+            <div class="dsnum">Step 4</div>
+            <div class="dstitle">The Proof</div>
+            <div class="dsdesc">Formal contradiction, one line at a time.</div>
+          </div>
+        </div>
+        <div id="rule-area"></div>
+        <div id="sel-count">0 / 5 rules selected</div>
+        <button id="build-btn" onclick="buildDetector()">Build Detector &amp; Run →</button>
+        <div id="proof-box"></div>
+        <div id="esc-wrap"><button id="esc-btn" onclick="showPortrait()">🚪 Escape — See Your Portrait</button></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- SCOREBOARD -->
+  <aside id="scoreboard">
+    <div class="sb-title">Statistics</div>
+    <div class="sb-item">
+      <div class="sb-lbl">Prediction Accuracy</div>
+      <div class="sb-val"><span id="sb-correct">0</span>/<span id="sb-total">0</span></div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-lbl">Best Streak</div>
+      <div class="sb-val" id="sb-streak">0</div>
+    </div>
+    <div class="sb-item">
+      <div class="sb-lbl">Total Steps Simulated</div>
+      <div class="sb-val" id="sb-steps">0</div>
+    </div>
+    <hr class="sb-divider">
+    <div class="sb-item">
+      <div class="sb-lbl">Answered Incorrectly</div>
+      <div class="sb-fooled" id="sb-fooled">None yet</div>
+    </div>
+  </aside>
+
+  <!-- PORTRAIT -->
+  <div id="portrait">
+    <div id="portrait-close" onclick="document.getElementById('portrait').classList.remove('show')"
+      style="position: absolute; top: 30px; right: 40px; font-size: 32px; color: var(--muted); cursor: pointer; z-index: 100; user-select: none; transition: color 0.2s;"
+      onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--muted)'">&#x2715;</div>
+    <div class="ibadge">You Escaped the Room</div>
+    <h2 id="p-title">Your Computational Portrait</h2>
+    <p id="p-sub">Every mark was made by a program. Every program was a question.<br>Some questions have no answer.</p>
+    <div id="p-stats">
+      <div class="pstat">
+        <div class="pstat-v accent" id="ps-c">0</div>
+        <div class="pstat-l">Correct</div>
+      </div>
+      <div class="pstat">
+        <div class="pstat-v accent" id="ps-a">0%</div>
+        <div class="pstat-l">Accuracy</div>
+      </div>
+      <div class="pstat">
+        <div class="pstat-v" id="ps-s">0</div>
+        <div class="pstat-l">Best Streak</div>
+      </div>
+      <div class="pstat">
+        <div class="pstat-v" id="ps-t">0</div>
+        <div class="pstat-l">Total Steps</div>
+      </div>
+    </div>
+    <canvas id="portrait-canvas" width="800" height="800"></canvas>
+    <p id="p-caption"><em>Every mark was made by a program. Every program was a question. Some questions have no
+        answer.</em></p>
+    <blockquote id="turing-quote">
+      "We may compare a man in the process of computing a real number to a machine which is only capable of a finite
+      number of conditions."
+      <small style="color:var(--dim);margin-top:8px;display:block">— Alan Turing, On Computable Numbers with an
+        Application to the Entscheidungsproblem (1936)</small>
+    </blockquote>
+    <button id="exp-portrait" onclick="exportPortrait()">⬇ Export Portrait PNG</button>
+  </div>
+
+  <script>
+    // ============================================================
+    // EVENT BUS
+    // ============================================================
+    const Bus = (() => {
+      const L = {};
+      return {
+        on(e, f) { (L[e] = L[e] || []).push(f) },
+        emit(e, d) { (L[e] || []).slice().forEach(f => f(d)) },
+        clear(e) { L[e] = [] }
+      };
+    })();
+
+    // ============================================================
+    // PROGRESS TRACKER
+    // ============================================================
+    const PT = (() => {
+      const KEY = 'hpesc-v2';
+      let s = { streak: 0, best: 0, total: 0, levels: {} };
+      try { const r = localStorage.getItem(KEY); if (r) s = { ...s, ...JSON.parse(r) } } catch (e) { }
+      const save = () => { try { localStorage.setItem(KEY, JSON.stringify(s)) } catch (e) { } };
+      return {
+        s, save,
+        record(id, pred, ok, steps) {
+          s.levels[id] = { pred, ok }; s.total += steps;
+          if (ok) { s.streak++; s.best = Math.max(s.best, s.streak) } else s.streak = 0;
+          save();
+        },
+        correct() { return Object.values(s.levels).filter(l => l.ok).length },
+        played() { return Object.keys(s.levels).length },
+        wrong(levels) { return levels.filter(l => s.levels[l.id] && !s.levels[l.id].ok).map(l => l.name) }
+      };
+    })();
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function isPrime(n) {
+      if (n < 2) return false; if (n === 2) return true; if (n % 2 === 0) return false;
+      for (let i = 3; i <= Math.sqrt(n); i += 2)if (n % i === 0) return false;
+      return true;
+    }
+    const $ = id => document.getElementById(id);
+
+    // ============================================================
+    // ART MODE DEFINITIONS (title, description, live fn)
+    // ============================================================
+    const ART_MODES = {
+      descent: {
+        title: 'Descent Line',
+        tag: 'mode:descent_line',
+        desc: 'Every step grows the line one pixel downward. The register value x controls horizontal drift — as x decreases toward 0, the line shifts. A decisive stroke ending in a bright dot marks the halt.',
+        live: (d) => `step ${d.stepCount} | x = ${d.register?.x ?? '—'} | y-position = ${d.stepCount}`
+      },
+      bloom: {
+        title: 'Exponential Bloom',
+        tag: 'mode:exp_bloom',
+        desc: 'Each step draws a stacked circle. Radius = log₂(x) × 11. As x doubles each iteration, circles bloom outward exponentially — then stop abruptly when the halt condition is met.',
+        live: (d) => `step ${d.stepCount} | x = ${d.register?.x ?? '—'} | circle radius ≈ log₂(x)×11 = ${Math.round(Math.log2(Math.max(1, d.register?.x || 1)) * 11)}`
+      },
+      sieve: {
+        title: 'Prime Sieve Field',
+        tag: 'mode:prime_sieve',
+        desc: 'Each value of x is plotted as a dot. Amber = prime number. Gray = composite. The field reveals the density of primes thinning as x grows — but no even prime ever appears above 2.',
+        live: (d) => `step ${d.stepCount} | x = ${d.register?.x ?? '—'} | ${isPrime(d.register?.x || 0) ? '▲ PRIME → amber dot' : 'composite → gray dot'}`
+      },
+      collatz: {
+        title: 'Collatz Hailstone Graph',
+        tag: 'mode:collatz_hailstone',
+        desc: 'Classic hailstone graph: X-axis = step number (time, left→right). Y-axis = log₂(x value) so the dramatic swings are visible. 🔵 Blue = divide-by-2 steps (x drops, line falls). 🟡 Amber = 3x+1 steps (x spikes up). x=27 soars to 9,232 then cascades back to 1 in 111 steps.',
+        live: (d) => {
+          const x = d.register?.x ?? '—';
+          let op = 'traversing';
+          if (d.branchTaken === 'YES' && d.node === 'C') op = '÷2  → falls (blue)';
+          else if (d.node === 'E') op = '3x+1 → rises (amber)';
+          return `step ${d.stepCount} | x = ${x} | ${op}`;
+        }
+      },
+      spiral: {
+        title: 'Modular Spiral (Golden Angle)',
+        tag: 'mode:modular_spiral',
+        desc: 'Each step plots a point using the golden angle (137.5°) — like seeds in a sunflower. Radius = (x mod 17). The spiral accumulates until x satisfies BOTH mod 17 = 0 AND mod 13 = 0, which only occurs at x = 221 (LCM).',
+        live: (d) => {
+          const x = d.register?.x || 0;
+          return `step ${d.stepCount} | x = ${x} | x mod 17 = ${x % 17} | x mod 13 = ${x % 13}`;
+        }
+      },
+      weave: {
+        title: 'Even Weave',
+        tag: 'mode:even_weave',
+        desc: 'Each step draws one horizontal thread at y = step count. Color = x mod 12, mapped to a 12-color palette. Since x stays even, only even-indexed colors (0,2,4,6,8,10) ever appear — half the palette is permanently absent.',
+        live: (d) => {
+          const x = d.register?.x || 0;
+          const ci = ((Math.floor(x / 2)) % 6) * 2;
+          const colors = ['Red', 'Orange', 'Amber', 'Green', 'Teal', 'Blue', 'Violet', 'Pink', 'Cyan', 'Lime', 'Purple', 'Rose'];
+          return `step ${d.stepCount} | x = ${x} | color index ${ci} (${colors[ci] || '—'})`;
+        }
+      },
+      contradiction: {
+        title: 'Contradiction Portrait',
+        tag: 'mode:diagonalization',
+        desc: 'Phase 1: Your H detector as a decision tree (blue). Phase 2: Program D mirrored with every branch flipped (red). Phase 3: D(D) — a red arrow loops from output back to input, the contradiction shatters both trees into particles, then reassembles as "UNDECIDABLE".',
+        live: () => 'Building contradiction argument…'
+      }
+    };
+
+    // ============================================================
+    // LEVEL DEFINITIONS
+    // ============================================================
+    const LEVELS = [
+      {
+        id: 1, name: "The Warm-Up", accent: "#22c55e",
+        backstory: "A simple program. Your first case file. Don't overthink it.",
+        halts: true, artMode: "descent",
+        progTxt: "x = 10\nLOOP:\n  if x == 0  →  HALT\n  else\n    x = x − 1\n    go to LOOP",
+        teach: "Linear countdown: x decrements from 10 to 0 in exactly 11 steps. Simple, deterministic, always terminates. The descent line traces each step — a clean stroke ending decisively.",
+        prog: {
+          nodes: [{ id: 'S', t: 'start', lbl: 'START' }, { id: 'A', t: 'proc', lbl: 'x = 10' }, { id: 'B', t: 'cond', lbl: 'x == 0?' }, { id: 'C', t: 'proc', lbl: 'x = x − 1' }, { id: 'H', t: 'end', lbl: 'HALT' }],
+          edges: [{ f: 'S', t: 'A' }, { f: 'A', t: 'B' }, { f: 'B', t: 'H', lbl: 'YES' }, { f: 'B', t: 'C', lbl: 'NO' }, { f: 'C', t: 'B' }],
+          init: () => ({ x: 10 }),
+          step: (r, n) => {
+            switch (n) {
+              case 'S': return { r, nx: 'A' }; case 'A': return { r: { x: 10 }, nx: 'B' };
+              case 'B': return r.x === 0 ? { r, nx: 'H', br: 'YES' } : { r, nx: 'C', br: 'NO' };
+              case 'C': return { r: { x: r.x - 1 }, nx: 'B' }; case 'H': return { r, nx: null, halt: true };
+            }
+          }
+        }
+      },
+      {
+        id: 2, name: "The Obvious Trap", accent: "#3b82f6",
+        backstory: "This one looks like it loops forever. Look closer.",
+        halts: true, artMode: "bloom",
+        progTxt: "x = 1\nLOOP:\n  x = x × 2\n  if x > 1,000,000  →  HALT\n  go to LOOP",
+        teach: "Exponential growth halts faster than intuition suggests. 2²⁰ = 1,048,576 > 1,000,000 — reached in just 20 steps. The art bloom terminates abruptly at the step you didn't expect.",
+        prog: {
+          nodes: [{ id: 'S', t: 'start', lbl: 'START' }, { id: 'A', t: 'proc', lbl: 'x = 1' }, { id: 'B', t: 'proc', lbl: 'x = x × 2' }, { id: 'C', t: 'cond', lbl: 'x > 1,000,000?' }, { id: 'H', t: 'end', lbl: 'HALT' }],
+          edges: [{ f: 'S', t: 'A' }, { f: 'A', t: 'B' }, { f: 'B', t: 'C' }, { f: 'C', t: 'H', lbl: 'YES' }, { f: 'C', t: 'B', lbl: 'NO' }],
+          init: () => ({ x: 1 }),
+          step: (r, n) => {
+            switch (n) {
+              case 'S': return { r, nx: 'A' }; case 'A': return { r: { x: 1 }, nx: 'B' };
+              case 'B': return { r: { x: r.x * 2 }, nx: 'C' };
+              case 'C': return r.x > 1000000 ? { r, nx: 'H', br: 'YES' } : { r, nx: 'B', br: 'NO' };
+              case 'H': return { r, nx: null, halt: true };
+            }
+          }
+        }
+      },
+      {
+        id: 3, name: "The Patient One", accent: "#f59e0b",
+        backstory: "This program is searching for something specific. The question is whether it ever finds it.",
+        halts: false, artMode: "sieve",
+        progTxt: "x = 2\nLOOP:\n  x = x + 1\n  if NOT prime(x)  →  LOOP\n  if x is even     →  HALT\n  go to LOOP",
+        teach: "There are no even primes greater than 2. This program runs forever — finding only odd primes, never an even one above 2. The prime sieve field fills endlessly. 'Watching longer never helps.'",
+        prog: {
+          nodes: [{ id: 'S', t: 'start', lbl: 'START' }, { id: 'A', t: 'proc', lbl: 'x = 2' }, { id: 'B', t: 'proc', lbl: 'x = x + 1' }, { id: 'C', t: 'cond', lbl: 'x is prime?' }, { id: 'D', t: 'cond', lbl: 'x is even?' }, { id: 'H', t: 'end', lbl: 'HALT' }],
+          edges: [{ f: 'S', t: 'A' }, { f: 'A', t: 'B' }, { f: 'B', t: 'C' }, { f: 'C', t: 'B', lbl: 'NO' }, { f: 'C', t: 'D', lbl: 'YES' }, { f: 'D', t: 'H', lbl: 'YES' }, { f: 'D', t: 'B', lbl: 'NO' }],
+          init: () => ({ x: 2 }),
+          step: (r, n) => {
+            switch (n) {
+              case 'S': return { r, nx: 'A' }; case 'A': return { r: { x: 2 }, nx: 'B' };
+              case 'B': return { r: { x: r.x + 1 }, nx: 'C' };
+              case 'C': return isPrime(r.x) ? { r, nx: 'D', br: 'YES' } : { r, nx: 'B', br: 'NO' };
+              case 'D': return r.x % 2 === 0 ? { r, nx: 'H', br: 'YES' } : { r, nx: 'B', br: 'NO' };
+              case 'H': return { r, nx: null, halt: true };
+            }
+          }
+        }
+      },
+      {
+        id: 4, name: "The Chameleon", accent: "#a855f7",
+        backstory: "You've seen countdowns. You've seen growth. This one does both. Repeatedly.",
+        halts: true, artMode: "collatz",
+        progTxt: "x = 27\nLOOP:\n  if x == 1      →  HALT\n  if x is even   →  x = x ÷ 2\n  else           →  x = 3x + 1\n  go to LOOP",
+        teach: "The Collatz conjecture. x=27 takes 111 steps, reaching a peak of 9,232 before collapsing to 1. This halts for every input ever tested — but nobody has proven it halts for all inputs. The Collatz River is a map of that uncertainty.",
+        prog: {
+          nodes: [{ id: 'S', t: 'start', lbl: 'START' }, { id: 'A', t: 'proc', lbl: 'x = 27' }, { id: 'B', t: 'cond', lbl: 'x == 1?' }, { id: 'C', t: 'cond', lbl: 'x is even?' }, { id: 'D', t: 'proc', lbl: 'x = x ÷ 2' }, { id: 'E', t: 'proc', lbl: 'x = 3x + 1' }, { id: 'H', t: 'end', lbl: 'HALT' }],
+          edges: [{ f: 'S', t: 'A' }, { f: 'A', t: 'B' }, { f: 'B', t: 'H', lbl: 'YES' }, { f: 'B', t: 'C', lbl: 'NO' }, { f: 'C', t: 'D', lbl: 'YES' }, { f: 'C', t: 'E', lbl: 'NO' }, { f: 'D', t: 'B' }, { f: 'E', t: 'B' }],
+          init: () => ({ x: 27 }),
+          step: (r, n) => {
+            switch (n) {
+              case 'S': return { r, nx: 'A' }; case 'A': return { r: { x: 27 }, nx: 'B' };
+              case 'B': return r.x === 1 ? { r, nx: 'H', br: 'YES' } : { r, nx: 'C', br: 'NO' };
+              case 'C': return r.x % 2 === 0 ? { r, nx: 'D', br: 'YES' } : { r, nx: 'E', br: 'NO' };
+              case 'D': return { r: { x: Math.floor(r.x / 2) }, nx: 'B' };
+              case 'E': return { r: { x: r.x * 3 + 1 }, nx: 'B' }; case 'H': return { r, nx: null, halt: true };
+            }
+          }
+        }
+      },
+      {
+        id: 5, name: "The Infinite Mirror", accent: "#ec4899",
+        backstory: "Waiting for two conditions to align simultaneously. Patience is not always rewarded.",
+        halts: true, artMode: "spiral",
+        progTxt: "x = 0\nLOOP:\n  x = x + 1\n  if x mod 17 == 0\n   AND x mod 13 == 0  →  HALT\n  go to LOOP",
+        teach: "LCM(17,13) = 221. After 220 identical-looking iterations, the program halts. The golden-angle spiral shows all 220 prior steps and one isolated final point at step 221 — geometrically obvious in hindsight, invisible in prospect.",
+        prog: {
+          nodes: [{ id: 'S', t: 'start', lbl: 'START' }, { id: 'A', t: 'proc', lbl: 'x = 0' }, { id: 'B', t: 'proc', lbl: 'x = x + 1' }, { id: 'C', t: 'cond', lbl: 'x mod 17=0\nAND\nx mod 13=0?' }, { id: 'H', t: 'end', lbl: 'HALT' }],
+          edges: [{ f: 'S', t: 'A' }, { f: 'A', t: 'B' }, { f: 'B', t: 'C' }, { f: 'C', t: 'H', lbl: 'YES' }, { f: 'C', t: 'B', lbl: 'NO' }],
+          init: () => ({ x: 0 }),
+          step: (r, n) => {
+            switch (n) {
+              case 'S': return { r, nx: 'A' }; case 'A': return { r: { x: 0 }, nx: 'B' };
+              case 'B': return { r: { x: r.x + 1 }, nx: 'C' };
+              case 'C': return (r.x % 17 === 0 && r.x % 13 === 0 && r.x > 0) ? { r, nx: 'H', br: 'YES' } : { r, nx: 'B', br: 'NO' };
+              case 'H': return { r, nx: null, halt: true };
+            }
+          }
+        }
+      },
+      {
+        id: 6, name: "The True Infinite", accent: "#ef4444",
+        backstory: "Not all programs halt. Can you tell the difference before the simulation gives up?",
+        halts: false, artMode: "weave",
+        progTxt: "x = 2\nLOOP:\n  x = x + 2\n  if x is odd  →  HALT\n  go to LOOP",
+        teach: "x starts at 2, increments by 2, stays even forever. The halt condition requires odd x — mathematically impossible. The weave fills the canvas without ever completing a full color cycle. 'Watching longer never helps. This is the halting problem.'",
+        prog: {
+          nodes: [{ id: 'S', t: 'start', lbl: 'START' }, { id: 'A', t: 'proc', lbl: 'x = 2' }, { id: 'B', t: 'proc', lbl: 'x = x + 2' }, { id: 'C', t: 'cond', lbl: 'x is odd?' }, { id: 'H', t: 'end', lbl: 'HALT' }],
+          edges: [{ f: 'S', t: 'A' }, { f: 'A', t: 'B' }, { f: 'B', t: 'C' }, { f: 'C', t: 'H', lbl: 'YES' }, { f: 'C', t: 'B', lbl: 'NO' }],
+          init: () => ({ x: 2 }),
+          step: (r, n) => {
+            switch (n) {
+              case 'S': return { r, nx: 'A' }; case 'A': return { r: { x: 2 }, nx: 'B' };
+              case 'B': return { r: { x: r.x + 2 }, nx: 'C' };
+              case 'C': return r.x % 2 !== 0 ? { r, nx: 'H', br: 'YES' } : { r, nx: 'B', br: 'NO' };
+              case 'H': return { r, nx: null, halt: true };
+            }
+          }
+        }
+      },
+      {
+        id: 7, name: "The Undecidable", accent: "#ffffff",
+        backstory: "Build your detector. Then watch it fail.",
+        halts: null, artMode: "contradiction"
+      }
+    ];
+
+    const SPEED_LBL = ['Slow', 'Normal', 'Fast', 'Instant'];
+    const SPEED_FPF = [2, 20, 200, Infinity];
+    const MAX_STEPS = 10000;
+
+    // ============================================================
+    // FLOWCHART ENGINE  — speed changes mid-run via this.speedIdx
+    // ============================================================
+    class FCEngine {
+      constructor(prog) {
+        this.prog = prog;
+        this.r = prog.init ? prog.init() : { x: 0 };
+        this.cur = 'S'; this.steps = 0; this.status = 'ready';
+        this.visited = {}; this.lastBr = null;
+        this._raf = null; this._run = false;
+        this.speedIdx = 1; // updated live by slider
+      }
+      _step() {
+        if (this.status !== 'running') return false;
+        const res = this.prog.step(this.r, this.cur);
+        if (!res) return false;
+        const prev = this.cur;
+        this.visited[this.cur] = (this.visited[this.cur] || 0) + 1;
+        this.r = res.r; this.cur = res.nx; this.lastBr = res.br || null; this.steps++;
+        const done = res.halt || this.cur === null;
+        if (done) this.status = 'halted';
+        else if (this.steps >= MAX_STEPS) this.status = 'exceeded';
+        const st = done ? 'halted' : this.status;
+        Bus.emit('step', { node: prev, currentNode: this.cur, register: { ...this.r }, stepCount: this.steps, branchTaken: res.br, status: st, visited: this.visited });
+        return !done && this.status === 'running';
+      }
+      start(spd) {
+        this.speedIdx = spd; this.status = 'running';
+        const fpf = SPEED_FPF[spd];
+        if (!isFinite(fpf)) { while (this._step()) { } Bus.emit('exec_done', { status: this.status, stepCount: this.steps, register: { ...this.r } }); return; }
+        const tick = () => {
+          if (!this._run) return;
+          // Read speed dynamically so slider changes take effect immediately
+          const curFpf = SPEED_FPF[this.speedIdx] || 20;
+          if (!isFinite(curFpf)) {
+            while (this._step()) { }
+            this._run = false;
+            Bus.emit('exec_done', { status: this.status, stepCount: this.steps, register: { ...this.r } });
+            return;
+          }
+          for (let i = 0; i < curFpf; i++) {
+            if (!this._step()) { this._run = false; Bus.emit('exec_done', { status: this.status, stepCount: this.steps, register: { ...this.r } }); return; }
+          }
+          this._raf = requestAnimationFrame(tick);
+        };
+        this._run = true; this._raf = requestAnimationFrame(tick);
+      }
+      stop() { this._run = false; if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; } }
+    }
+
+    // ============================================================
+    // FLOWCHART RENDERER
+    // ============================================================
+    class FCRenderer {
+      constructor(canvas) {
+        this.cv = canvas; this.cx = canvas.getContext('2d');
+        this.pos = {}; this.nodes = {}; this.edges = [];
+        this.accent = '#22c55e'; this.visited = {}; this.curNode = null; this.activeEdge = null;
+        // Zoom / pan state
+        this.zoom = 1; this.panX = 0; this.panY = 0;
+      }
+      resetView() { this.zoom = 1; this.panX = 0; this.panY = 0; }
+      load(prog, accent) {
+        this.accent = accent; this.nodes = {};
+        prog.nodes.forEach(n => this.nodes[n.id] = n);
+        this.edges = prog.edges; this.visited = {}; this.curNode = 'S'; this.activeEdge = null;
+        this.resetView();
+        this._layout(); this.draw();
+      }
+      _layout() {
+        const layers = { S: 0 }, q = ['S'], seen = new Set(['S']);
+        while (q.length) {
+          const n = q.shift();
+          this.edges.filter(e => e.f === n && e.t && !seen.has(e.t)).forEach(e => { seen.add(e.t); layers[e.t] = (layers[n] || 0) + 1; q.push(e.t); });
+        }
+        Object.keys(this.nodes).forEach(id => { if (layers[id] === undefined) layers[id] = 0; });
+        const maxL = Math.max(...Object.values(layers));
+        if (layers['H'] !== undefined) layers['H'] = maxL;
+        const byL = {};
+        Object.entries(layers).forEach(([id, l]) => (byL[l] = byL[l] || []).push(id));
+        const W = this.cv.width, H = this.cv.height, px = 60, py = 55, nL = Math.max(maxL, 1);
+        Object.entries(byL).forEach(([l, ids]) => {
+          const y = py + (parseInt(l) / nL) * (H - py * 2);
+          ids.forEach((id, i) => { this.pos[id] = { x: px + ((i + .5) / ids.length) * (W - px * 2), y }; });
+        });
+      }
+      update(data) {
+        if (data.node) this.visited[data.node] = (this.visited[data.node] || 0) + 1;
+        this.curNode = data.currentNode || data.node;
+        if (data.node && data.currentNode) this.activeEdge = { f: data.node, t: data.currentNode };
+        this.draw();
+      }
+      draw() {
+        const { cx, cv } = this; cx.clearRect(0, 0, cv.width, cv.height);
+        cx.save();
+        cx.translate(this.panX, this.panY);
+        cx.scale(this.zoom, this.zoom);
+        this.edges.forEach(e => this._drawEdge(e));
+        Object.values(this.nodes).forEach(n => this._drawNode(n));
+        cx.restore();
+        // Zoom hint (only when zoomed)
+        if (this.zoom !== 1 || this.panX !== 0 || this.panY !== 0) {
+          cx.save(); cx.fillStyle = 'rgba(255,255,255,.28)'; cx.font = '10px Inter,sans-serif';
+          cx.textAlign = 'right'; cx.textBaseline = 'bottom';
+          cx.fillText(`${Math.round(this.zoom * 100)}%  scroll=zoom  drag=pan`, cv.width - 8, cv.height - 6);
+          cx.restore();
+        }
+      }
+      _nc(t) { return t === 'start' ? '#22c55e' : t === 'end' ? '#ef4444' : t === 'proc' ? '#3b82f6' : '#f59e0b'; }
+      _drawNode(node) {
+        const p = this.pos[node.id]; if (!p) return;
+        const { cx } = this; const active = this.curNode === node.id; const vis = !!(this.visited[node.id]); const col = this._nc(node.t);
+        cx.save(); cx.globalAlpha = active ? 1 : vis ? .8 : .35;
+        if (node.t === 'cond') {
+          const hw = 60, hh = 30;
+          cx.beginPath(); cx.moveTo(p.x, p.y - hh); cx.lineTo(p.x + hw, p.y); cx.lineTo(p.x, p.y + hh); cx.lineTo(p.x - hw, p.y); cx.closePath();
+          if (active) { cx.shadowColor = this.accent; cx.shadowBlur = 26; }
+          cx.fillStyle = active ? col + '44' : col + '16'; cx.fill();
+          cx.strokeStyle = active ? this.accent : col + (vis ? 'aa' : '44'); cx.lineWidth = active ? 2.5 : 1; cx.stroke(); cx.shadowBlur = 0;
+          cx.fillStyle = active ? '#fff' : col + (vis ? 'ee' : '77'); cx.font = `${active ? 10 : 9}px JetBrains Mono,monospace`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          node.lbl.split('\n').forEach((ln, i, a) => cx.fillText(ln, p.x, p.y + (i - (a.length - 1) / 2) * 12));
+        } else {
+          const w = 104, h = 34, r = 9;
+          cx.beginPath();
+          cx.moveTo(p.x - w / 2 + r, p.y - h / 2); cx.lineTo(p.x + w / 2 - r, p.y - h / 2); cx.arcTo(p.x + w / 2, p.y - h / 2, p.x + w / 2, p.y - h / 2 + r, r);
+          cx.lineTo(p.x + w / 2, p.y + h / 2 - r); cx.arcTo(p.x + w / 2, p.y + h / 2, p.x + w / 2 - r, p.y + h / 2, r);
+          cx.lineTo(p.x - w / 2 + r, p.y + h / 2); cx.arcTo(p.x - w / 2, p.y + h / 2, p.x - w / 2, p.y + h / 2 - r, r);
+          cx.lineTo(p.x - w / 2, p.y - h / 2 + r); cx.arcTo(p.x - w / 2, p.y - h / 2, p.x - w / 2 + r, p.y - h / 2, r); cx.closePath();
+          if (active) { cx.shadowColor = this.accent; cx.shadowBlur = 26; }
+          cx.fillStyle = active ? col + '44' : col + '16'; cx.fill();
+          cx.strokeStyle = active ? this.accent : col + (vis ? 'aa' : '44'); cx.lineWidth = active ? 2.5 : 1; cx.stroke(); cx.shadowBlur = 0;
+          cx.fillStyle = active ? '#fff' : col + (vis ? 'ee' : '77'); cx.font = `${active ? 11 : 10}px Inter,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          cx.fillText(node.lbl, p.x, p.y);
+        }
+        const vc = this.visited[node.id] || 0;
+        if (vc > 1) {
+          const bx = p.x + (node.t === 'cond' ? 56 : 47), by = p.y - (node.t === 'cond' ? 27 : 15);
+          cx.globalAlpha = .95; cx.fillStyle = this.accent; cx.beginPath(); cx.arc(bx, by, 9, 0, Math.PI * 2); cx.fill();
+          cx.fillStyle = '#000'; cx.font = 'bold 8px Inter,sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(vc > 99 ? '99+' : vc, bx, by);
+        }
+        cx.restore();
+      }
+      _drawEdge(edge) {
+        const from = this.pos[edge.f], to = edge.t ? this.pos[edge.t] : null; if (!from || !to) return;
+        const { cx } = this;
+        const active = this.activeEdge && this.activeEdge.f === edge.f && this.activeEdge.t === edge.t;
+        const col = active ? this.accent : '#4a5568';
+        cx.save(); cx.globalAlpha = active ? 1 : .35; cx.strokeStyle = col; cx.fillStyle = col; cx.lineWidth = active ? 2 : 1;
+        const fn = this.nodes[edge.f], tn = this.nodes[edge.t];
+        const fy = fn?.t === 'cond' ? 30 : 17, ty = tn?.t === 'cond' ? 30 : 17;
+        const isLoop = to.y < from.y + 20;
+        if (isLoop) {
+          const cpX = Math.max(from.x, to.x) + 68;
+          cx.beginPath(); cx.moveTo(from.x + 50, from.y); cx.bezierCurveTo(cpX, from.y, cpX, to.y, to.x + 50, to.y); cx.stroke();
+          this._arrowAt(to.x + 50, to.y, Math.PI);
+        } else {
+          const x1 = from.x, y1 = from.y + fy, x2 = to.x, y2 = to.y - ty;
+          cx.beginPath(); cx.moveTo(x1, y1); cx.lineTo(x2, y2); cx.stroke();
+          this._arrowAt(x2, y2, Math.atan2(y2 - y1, x2 - x1));
+        }
+        if (edge.lbl) {
+          cx.fillStyle = active ? this.accent : '#64748b'; cx.font = `${active ? 10 : 9}px Inter,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          const mx = isLoop ? Math.max(from.x, to.x) + 70 : (from.x + to.x) / 2 + 10;
+          cx.fillText(edge.lbl, mx, (from.y + to.y) / 2);
+        }
+        cx.restore();
+      }
+      _arrowAt(x, y, angle) {
+        const s = 8, { cx } = this;
+        cx.beginPath(); cx.moveTo(x, y);
+        cx.lineTo(x - s * Math.cos(angle - .4), y - s * Math.sin(angle - .4));
+        cx.lineTo(x - s * Math.cos(angle + .4), y - s * Math.sin(angle + .4));
+        cx.closePath(); cx.fill();
+      }
+    }
+
+    // ============================================================
+    // ART ENGINE
+    // ============================================================
+    class ArtEngine {
+      constructor(canvas) { this.cv = canvas; this.cx = canvas.getContext('2d'); this.mode = null; this.accent = '#22c55e'; this._s = {}; }
+      init(mode, accent) {
+        this.mode = mode; this.accent = accent; this._s = {};
+        const { cx, cv } = this; const W = cv.width, H = cv.height;
+        cx.clearRect(0, 0, W, H); cx.fillStyle = '#080c14'; cx.fillRect(0, 0, W, H);
+        const pal = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#a855f7', '#f43f5e'];
+        if (mode === 'weave') this._s = { y: 0, pal };
+        if (mode === 'spiral') this._s = { iter: 0, cx: W / 2, cy: H / 2, rMax: Math.min(W, H) / 2 - 20 };
+        if (mode === 'bloom') this._s = { sc: 0 };
+        if (mode === 'descent') this._s = { x: W / 2, prevX: W / 2, y: 12 };
+        if (mode === 'sieve') this._s = { cols: Math.max(1, Math.floor(W / 13)) };
+        if (mode === 'collatz') this._s = { last: null, ic: 0 };
+      }
+      onStep(d) {
+        const { cv } = this, W = cv.width, H = cv.height; if (W < 2 || H < 2) return;
+        const x = d.register ? d.register.x : 0;
+        switch (this.mode) {
+          case 'descent': this._descent(d, W, H, x); break;
+          case 'bloom': this._bloom(d, W, H, x); break;
+          case 'sieve': this._sieve(d, W, H, x); break;
+          case 'collatz': this._collatz(d, W, H, x); break;
+          case 'spiral': this._spiral(d, W, H, x); break;
+          case 'weave': this._weave(d, W, H, x); break;
+        }
+      }
+      onComplete(d) {
+        const { cx, cv } = this, W = cv.width, H = cv.height;
+        if (this.mode === 'weave' && d.status === 'exceeded') {
+          cx.save(); cx.font = `bold ${Math.round(Math.min(W, H) * .35)}px Inter,sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          cx.fillStyle = '#ef4444'; cx.shadowColor = '#ef4444'; cx.shadowBlur = 36; cx.globalAlpha = .84; cx.fillText('∞', W / 2, H / 2); cx.restore();
+        }
+        if (this.mode === 'descent' && d.status === 'halted') {
+          const s = this._s; cx.save(); cx.beginPath(); cx.arc(s.x, s.y, 7, 0, Math.PI * 2); cx.fillStyle = this.accent; cx.shadowColor = this.accent; cx.shadowBlur = 26; cx.fill(); cx.restore();
+        }
+        if (this.mode === 'spiral' && d.status === 'halted') {
+          const s = this._s, x = d.register?.x || 0;
+          const ang = (s.iter * 137.508 % 360) * Math.PI / 180;
+          const r = ((x % 17 + 1) / 18) * s.rMax;
+          const px = s.cx + Math.cos(ang) * r, py = s.cy + Math.sin(ang) * r;
+          cx.save(); cx.beginPath(); cx.arc(px, py, 9, 0, Math.PI * 2); cx.fillStyle = '#fff'; cx.shadowColor = '#fff'; cx.shadowBlur = 32; cx.fill(); cx.restore();
+        }
+      }
+      _descent(d, W, H, x) {
+        const { cx } = this, s = this._s;
+        const tX = W * .5 + (x - 5) * -4.5; s.x = s.prevX * .82 + tX * .18;
+        const nY = Math.min(H - 20, 12 + (d.stepCount / 13) * (H - 32));
+        cx.save(); cx.strokeStyle = this.accent; cx.lineWidth = 2.5; cx.globalAlpha = .88; cx.shadowColor = this.accent; cx.shadowBlur = 6;
+        cx.beginPath(); cx.moveTo(s.prevX, s.y); cx.lineTo(s.x, nY); cx.stroke(); cx.restore();
+        s.prevX = s.x; s.y = nY;
+      }
+      _bloom(d, W, H, x) {
+        const { cx } = this, s = this._s; s.sc++;
+        const logR = Math.max(2, Math.log2(Math.max(1, x))) * 12, ang = s.sc * 23 * Math.PI / 180;
+        cx.save(); cx.globalAlpha = .25; cx.strokeStyle = this.accent; cx.lineWidth = 1.2; cx.shadowColor = this.accent; cx.shadowBlur = 10;
+        cx.beginPath(); cx.arc(W / 2 + Math.cos(ang) * 3, H / 2 + Math.sin(ang) * 3, Math.min(logR, Math.min(W, H) / 2 - 5), 0, Math.PI * 2); cx.stroke(); cx.restore();
+      }
+      _sieve(d, W, H, x) {
+        const { cx } = this, s = this._s, cols = s.cols, dh = 13;
+        const col = ((x - 2) % cols + cols) % cols, row = Math.floor((x - 2) / cols) % (Math.floor(H / dh) || 1);
+        const px = (col / cols) * W + W / cols / 2, py = row * dh + dh / 2, prime = isPrime(x);
+        cx.save(); cx.globalAlpha = prime ? .95 : .18; cx.fillStyle = prime ? '#f59e0b' : '#1e293b';
+        if (prime) { cx.shadowColor = '#f59e0b'; cx.shadowBlur = 10; }
+        cx.beginPath(); cx.arc(px, py, prime ? 3.5 : 2, 0, Math.PI * 2); cx.fill(); cx.restore();
+      }
+      _collatz(d, W, H, x) {
+        const { cx } = this, s = this._s; s.ic++;
+        if (x < 1) return;
+        // Classic hailstone graph: time (step) on x-axis, log(x) on y-axis
+        // x=27 takes 111 math steps, which maps to ~337 virtual machine steps
+        const TOTAL_STEPS = 340;
+        const MAX_LOG = Math.log(9233);
+        const xp = W * .04 + Math.min(1, s.ic / TOTAL_STEPS) * W * .92;
+        const yp = H - 6 - (Math.log(x + 1) / MAX_LOG) * (H - 16);
+        // detect operation: blue = divide by 2 (going down), amber = 3x+1 (going up)
+        const isEven = d.branchTaken === 'YES' && d.node === 'C';
+        const col = isEven ? '#60a5fa' : '#f59e0b';
+        if (s.last) {
+          // Glow stroke connecting points
+          cx.save();
+          cx.strokeStyle = col; cx.lineWidth = 2; cx.globalAlpha = .82;
+          cx.shadowColor = col; cx.shadowBlur = 10;
+          cx.beginPath(); cx.moveTo(s.last.x, s.last.y); cx.lineTo(xp, yp); cx.stroke();
+          cx.restore();
+        }
+        // Bright dot at each point
+        cx.save();
+        cx.fillStyle = col; cx.globalAlpha = .9;
+        cx.shadowColor = col; cx.shadowBlur = 8;
+        cx.beginPath(); cx.arc(xp, yp, isEven ? 1.5 : 2.5, 0, Math.PI * 2); cx.fill();
+        cx.restore();
+        s.last = { x: xp, y: yp };
+      }
+      _spiral(d, W, H, x) {
+        const { cx } = this, s = this._s; s.iter++;
+        const ang = (s.iter * 137.508 % 360) * Math.PI / 180;
+        const r = ((x % 17 + 1) / 18) * s.rMax;
+        const px = s.cx + Math.cos(ang) * r, py = s.cy + Math.sin(ang) * r;
+        cx.save(); cx.fillStyle = this.accent; cx.globalAlpha = .55; cx.beginPath(); cx.arc(px, py, 2.5, 0, Math.PI * 2); cx.fill(); cx.restore();
+      }
+      _weave(d, W, H, x) {
+        const { cx } = this, s = this._s; if (s.y >= H) return;
+        const ci = (Math.floor(x / 2) % 6) * 2;
+        cx.save(); cx.strokeStyle = s.pal[ci]; cx.lineWidth = 1; cx.globalAlpha = .65; cx.beginPath(); cx.moveTo(0, s.y); cx.lineTo(W, s.y); cx.stroke(); cx.restore(); s.y++;
+      }
+    }
+
+    // ============================================================
+    // PORTRAIT ENGINE
+    // ============================================================
+    const snaps = {};
+    function captureSnap(id, canvas) { try { snaps[id] = canvas.toDataURL('image/png') } catch (e) { } }
+    function renderPortrait(canvas, results) {
+      const ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2;
+      ctx.clearRect(0, 0, W, H);
+      // Dark background with subtle grid
+      ctx.fillStyle = '#080c14'; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(255,255,255,.025)'; ctx.lineWidth = 1;
+      for (let i = 1; i < 6; i++) { ctx.beginPath(); ctx.arc(cx, cy, i * W / 12, 0, Math.PI * 2); ctx.stroke(); }
+      const sa = Math.PI * 2 / 7;
+      for (let i = 0; i < 7; i++) {
+        const lv = LEVELS[i], res = results[lv.id] || {}, ok = !!res.ok;
+        const a0 = -Math.PI / 2 + i * sa, a1 = a0 + sa, am = (a0 + a1) / 2;
+        const R = W / 2 - 6;
+        ctx.save();
+        // Radial divider lines
+        ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a0) * R, cy + Math.sin(a0) * R); ctx.stroke();
+        // Segment fill
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, a0, a1); ctx.closePath(); ctx.clip();
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+        if (ok) {
+          g.addColorStop(0, lv.accent + '08');
+          g.addColorStop(.5, lv.accent + '55');
+          g.addColorStop(1, lv.accent + 'cc');
+        } else {
+          g.addColorStop(0, lv.accent + '04');
+          g.addColorStop(.6, lv.accent + '22');
+          g.addColorStop(1, lv.accent + '55');
+        }
+        ctx.fillStyle = g; ctx.fill();
+        // Concentric arcs for correct answers
+        if (ok) {
+          for (let j = 2; j <= 10; j++) {
+            ctx.strokeStyle = lv.accent + '30'; ctx.lineWidth = 1; ctx.globalAlpha = .9;
+            ctx.beginPath(); ctx.arc(cx, cy, j * R / 10, a0, a1); ctx.stroke();
+          }
+        }
+        // Level label near outer edge
+        ctx.globalAlpha = 1; ctx.fillStyle = ok ? '#fff' : lv.accent + 'bb';
+        ctx.font = `bold ${ok ? 13 : 11}px Inter,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const labelR = R - 20;
+        ctx.shadowColor = lv.accent; ctx.shadowBlur = ok ? 12 : 4;
+        ctx.fillText(`L${lv.id}`, cx + Math.cos(am) * labelR, cy + Math.sin(am) * labelR);
+        ctx.restore();
+      }
+      // Center diamond (rotated square) matching screenshot 3
+      const correct = Object.values(results).filter(r => r && r.ok).length;
+      const ds = 70; // diamond half-size
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = 'rgba(20,30,45,.85)';
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(255,255,255,.5)'; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.rect(-ds / 2, -ds / 2, ds, ds); ctx.fill(); ctx.stroke();
+      ctx.restore();
+      // Score text inside diamond
+      ctx.save();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Inter,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowBlur = 0;
+      ctx.fillText(`${correct}/6`, cx, cy);
+      ctx.restore();
+    }
+
+    // ============================================================
+    // UI STATE
+    // ============================================================
+    let curLvlIdx = 0, engine = null, fcr = null, art = null, userPred = null;
+    let timerInt = null, timerSec = 0, lvlResults = {};
+
+    function accentCSS(a) { document.documentElement.style.setProperty('--accent', a); }
+
+    function resizeCanvas() {
+      const fcP = $('fc-canvas').parentElement;
+      const fcc = $('fc-canvas'), artc = $('art-canvas');
+      fcc.width = Math.max(100, fcP.clientWidth - 2);
+      fcc.height = Math.max(180, fcP.clientHeight - 80);
+
+      // Art canvas wrap fills panel minus header(40) and info box
+      const artP = $('art-panel');
+      const infoH = ($('art-info') && $('art-info').offsetHeight) || 115;
+      const wrapH = Math.max(180, artP.clientHeight - 40 - infoH - 4);
+      const minW = Math.max(100, artP.clientWidth - 2);
+
+      const artWrap = $('art-canvas-wrap');
+      if (artWrap) {
+        artWrap.style.height = wrapH + 'px';
+        artc.height = wrapH;
+        // Expand horizontally for Collatz (Level 4) to allow scrolling without clustering
+        artc.width = curLvlIdx === 3 ? Math.max(minW, 1400) : minW;
+      }
+    }
+
+    function updSB() {
+      const c = PT.correct(), t = PT.played();
+      $('sb-correct').textContent = c; $('sb-total').textContent = t;
+      $('sb-streak').textContent = PT.s.best; $('sb-steps').textContent = PT.s.total.toLocaleString();
+      $('streak-num').textContent = PT.s.streak;
+      $('sb-fooled').textContent = PT.wrong(LEVELS.slice(0, 6)).join('\n') || 'None yet';
+    }
+    function toggleSB() { $('scoreboard').classList.toggle('open'); }
+    function updSpeed() {
+      const v = parseInt($('speed-sl').value);
+      $('speed-val').textContent = SPEED_LBL[v];
+      if (engine) engine.speedIdx = v; // live update mid-simulation
+    }
+
+    // ============================================================
+    // LOAD LEVEL
+    // ============================================================
+    function loadLevel(idx) {
+      curLvlIdx = idx; const lv = LEVELS[idx];
+      accentCSS(lv.accent);
+      $('lvl-badge-txt').textContent = `Level ${lv.id} — ${lv.name}`;
+      $('adot').style.background = lv.accent; $('adot').style.boxShadow = `0 0 8px ${lv.accent}`;
+      // ── TIMER starts immediately on level load ──
+      clearInterval(timerInt); timerSec = 0; updTimer();
+      timerInt = setInterval(() => { timerSec++; updTimer(); }, 1000);
+      userPred = null;
+      $('pbtn-h').className = 'pbtn'; $('pbtn-l').className = 'pbtn';
+      $('pbtn-h').disabled = false; $('pbtn-l').disabled = false;
+      if (engine) { engine.stop(); engine = null; }
+      Bus.clear('step'); Bus.clear('exec_done');
+
+      if (lv.id === 7) {
+        $('std-wrap').style.display = 'none'; $('diag-wrap').style.display = 'block'; $('diag-wrap').classList.add('show');
+        const am = ART_MODES.contradiction;
+        $('art-mode-name').textContent = am.title; $('art-tag').textContent = am.tag;
+        $('art-explain').textContent = am.desc; $('art-live').textContent = am.live({});
+        loadDiag(); return;
+      }
+
+      $('std-wrap').style.display = 'block'; $('diag-wrap').style.display = 'none';
+      $('lvl-num').textContent = `Level ${lv.id} of 7`; $('lvl-name').textContent = lv.name; $('backstory').textContent = lv.backstory;
+      $('prog-display').textContent = lv.progTxt; $('prog-title').textContent = `level_${lv.id}.program`;
+      $('result-card').className = ''; $('result-card').style.display = 'none';
+      $('run-btn').className = 'hidden'; $('run-btn').disabled = false;
+      $('stat-steps').textContent = '0'; $('stat-reg').textContent = Object.values(lv.prog.init?.() ?? { x: '—' }).join(', ');
+      $('stat-status').textContent = 'Ready'; $('fc-node-tag').textContent = 'node: START';
+      $('export-art').className = '';
+
+      const am = ART_MODES[lv.artMode];
+      $('art-mode-name').textContent = am.title; $('art-tag').textContent = am.tag;
+      $('art-explain').textContent = am.desc; $('art-live').textContent = 'Run simulation to generate art';
+
+      resizeCanvas();
+      fcr = new FCRenderer($('fc-canvas')); fcr.load(lv.prog, lv.accent);
+      art = new ArtEngine($('art-canvas')); art.init(lv.artMode, lv.accent);
+      updSB();
+    }
+
+    function predict(p) {
+      if (userPred) return; userPred = p;
+      $('pbtn-h').className = 'pbtn' + (p === 'halts' ? ' sel-h' : '');
+      $('pbtn-l').className = 'pbtn' + (p === 'loops' ? ' sel-l' : '');
+      $('pbtn-h').disabled = true; $('pbtn-l').disabled = true;
+      $('run-btn').className = ''; $('run-btn').style.background = LEVELS[curLvlIdx].accent;
+      $('run-btn').style.boxShadow = `0 0 24px ${LEVELS[curLvlIdx].accent}55`;
+      // Timer already started in loadLevel — no duplicate start here
+    }
+    function updTimer() { const m = String(Math.floor(timerSec / 60)).padStart(2, '0'), s = String(timerSec % 60).padStart(2, '0'); $('timer').textContent = `${m}:${s}`; }
+
+    function runSim() {
+      if (!userPred || !fcr) return;
+      $('run-btn').disabled = true;
+      const lv = LEVELS[curLvlIdx]; const spd = parseInt($('speed-sl').value);
+      art.init(lv.artMode, lv.accent); // wipe placeholder text
+      Bus.clear('step'); Bus.clear('exec_done');
+      const am = ART_MODES[lv.artMode];
+      Bus.on('step', d => {
+        $('stat-steps').textContent = d.stepCount.toLocaleString();
+        $('stat-reg').textContent = d.register ? d.register.x : '—';
+        $('stat-status').textContent = d.status === 'running' ? 'Running…' : d.status === 'halted' ? '✓ Halted' : '∞ Exceeded';
+        $('fc-node-tag').textContent = `node: ${d.currentNode || d.node}`;
+        $('art-live').textContent = am.live(d);
+        fcr.update(d); art.onStep(d);
+      });
+      Bus.on('exec_done', d => {
+        clearInterval(timerInt); art.onComplete(d);
+        requestAnimationFrame(() => {
+          captureSnap(lv.id, $('art-canvas')); $('export-art').className = 'show';
+          const halted = d.status === 'halted', predHalt = userPred === 'halts';
+          const ok = (halted && predHalt) || (!halted && !predHalt);
+          lvlResults[lv.id] = { pred: userPred, ok };
+          PT.record(lv.id, userPred, ok, d.stepCount);
+          showResult(ok, lv, d.status); updSB();
+          $('stat-status').textContent = halted ? '✓ Halted' : '∞ Runs Forever';
+          $('art-live').textContent = halted ? `Halted at step ${d.stepCount} | x = ${d.register?.x ?? '—'}` : `Exceeded ${d.stepCount.toLocaleString()} steps — running forever`;
+        });
+      });
+      engine = new FCEngine(lv.prog); engine.start(spd);
+    }
+
+    function showResult(ok, lv, status) {
+      const c = $('result-card');
+      c.style.display = 'block'; c.className = (ok ? 'ok' : 'bad') + ' show';
+      $('result-verdict').textContent = ok ? '✓ CORRECT' : '✗ WRONG'; // Changed from "FOOLED YOU"
+      const actual = status === 'halted' ? 'This program HALTS' : 'This program LOOPS FOREVER';
+      const chosen = userPred === 'halts' ? 'You predicted: HALTS' : 'You predicted: LOOPS FOREVER';
+      $('result-actual').textContent = `${chosen} · ${actual}`;
+      $('result-teach').textContent = lv.teach;
+      const nb = $('next-btn');
+      if (curLvlIdx >= LEVELS.length - 1) { nb.style.display = 'none'; }
+      else { nb.style.display = 'block'; nb.textContent = curLvlIdx === 5 ? 'Enter Level 7: The Undecidable →' : 'Next Level →'; }
+    }
+    function nextLevel() { if (engine) engine.stop(); $('export-art').className = ''; loadLevel(curLvlIdx + 1); }
+
+    // ============================================================
+    // LEVEL 7 — DIAGONALIZATION (FIXED: uses exact selected rules)
+    // ============================================================
+    const RULES = [
+      { id: 'r1', txt: 'If register value decrements toward zero → HALTS' },
+      { id: 'r2', txt: 'If no outgoing edge leads to a HALT node → LOOPS' },
+      { id: 'r3', txt: 'If step count has exceeded initial register value → LOOPS' },
+      { id: 'r4', txt: 'If x is always even and halt requires odd x → LOOPS' },
+      { id: 'r5', txt: 'If register grows without bound → LOOPS' },
+      { id: 'r6', txt: 'If halt condition is arithmetically unreachable → LOOPS' },
+      { id: 'r7', txt: 'If program has a finite countdown loop → HALTS' },
+      { id: 'r8', txt: 'If loop body never modifies the tested variable → LOOPS' },
+    ];
+    let selRules = [];
+
+    function loadDiag() {
+      selRules = []; $('rule-area').innerHTML = '';
+      document.querySelectorAll('.dstep').forEach(e => e.classList.remove('active')); $('ds1').classList.add('active');
+      RULES.forEach((r, i) => {
+        const d = document.createElement('div'); d.className = 'rule-item'; d.dataset.id = r.id;
+        d.innerHTML = `<span class="rnum">${i + 1}</span><span class="rtxt">${r.txt}</span><span class="rcheck">✓</span>`;
+        d.onclick = () => toggleRule(d, r); $('rule-area').appendChild(d);
+      });
+      $('sel-count').textContent = '0 / 5 rules selected';
+      $('proof-box').className = ''; $('proof-box').style.display = 'none'; $('proof-box').innerHTML = '';
+      $('esc-wrap').style.display = 'none'; $('build-btn').style.display = 'block'; $('build-btn').disabled = false;
+      resizeCanvas();
+      art = new ArtEngine($('art-canvas')); art.init('contradiction', LEVELS[6].accent);
+      const ac = $('art-canvas'), ctx = ac.getContext('2d');
+      ctx.fillStyle = '#080c14'; ctx.fillRect(0, 0, ac.width, ac.height);
+      ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.font = '12px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Select rules, then click Build Detector →', ac.width / 2, ac.height / 2);
+      const fcc = $('fc-canvas'); const fctx = fcc.getContext('2d');
+      fctx.fillStyle = '#080c14'; fctx.fillRect(0, 0, fcc.width, fcc.height);
+    }
+
+    function toggleRule(el, r) {
+      if (el.classList.contains('sel')) {
+        el.classList.remove('sel'); selRules = selRules.filter(x => x.id !== r.id);
+      } else if (selRules.length < 5) {
+        el.classList.add('sel'); selRules.push(r);
+      }
+      $('sel-count').textContent = `${selRules.length} / 5 rules selected`;
+    }
+    function activateDS(n) { document.querySelectorAll('.dstep').forEach((e, i) => e.classList.toggle('active', i + 1 === n)); }
+
+    function buildDetector() {
+      // Auto-select first rule if none chosen
+      if (selRules.length === 0) {
+        const firstEl = $('rule-area').querySelector('.rule-item');
+        if (firstEl) { firstEl.classList.add('sel'); selRules = [RULES[0]]; }
+        $('sel-count').textContent = '1 / 5 rules selected';
+      }
+      $('build-btn').disabled = true;
+      activateDS(2);
+      drawDProgram(); // uses selRules for accuracy
+      setTimeout(() => { activateDS(3); runContradictionArt(() => { activateDS(4); showProof(); }); }, 2800);
+    }
+
+    function rndRect(ctx, x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+    }
+    function arw(ctx, x1, y1, x2, y2) {
+      const a = Math.atan2(y2 - y1, x2 - x1), s = 8;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - s * Math.cos(a - .4), y2 - s * Math.sin(a - .4)); ctx.lineTo(x2 - s * Math.cos(a + .4), y2 - s * Math.sin(a + .4)); ctx.closePath(); ctx.fill();
+    }
+
+    // FIXED: drawDProgram builds nodes from ACTUAL selRules
+    function drawDProgram() {
+      const cv = $('fc-canvas'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+      ctx.fillStyle = '#080c14'; ctx.fillRect(0, 0, W, H);
+
+      // Nodes: D(x) start + one node per selected rule + condition + 2 outcomes
+      const rCount = selRules.length;
+      const totalNodes = 2 + rCount + 2; // header + rules + condition + loop/halt
+      const spacing = Math.min(68, H / (totalNodes + 1));
+      let nodes = [];
+      let y = H * .08;
+
+      // D(x) entry
+      nodes.push({ x: W / 2, y, lbl: `D(x)  [${rCount} rule${rCount !== 1 ? 's' : ''}]`, col: '#fff', type: 'start' });
+      y += spacing;
+
+      // One node per selected rule
+      selRules.forEach((r, i) => {
+        const ruleShort = r.txt.split('→')[0].trim().replace('If ', '');
+        nodes.push({ x: W / 2, y, lbl: `Rule ${i + 1}: ${ruleShort}`, col: '#94a3b8', type: 'rule' });
+        y += spacing;
+      });
+
+      // H outcome condition
+      nodes.push({ x: W / 2, y, lbl: 'H(x,x)\nsays HALTS?', col: '#64748b', type: 'cond' });
+      const condNode = nodes[nodes.length - 1]; y += spacing;
+
+      // Two outcome nodes side by side
+      const outY = y;
+      const loopNode = { x: W * .28, y: outY, lbl: 'Loop forever\n(D does opposite)', col: '#ef4444', type: 'out' };
+      const haltNode = { x: W * .72, y: outY, lbl: 'HALT immediately\n(D does opposite)', col: '#22c55e', type: 'out' };
+      nodes.push(loopNode, haltNode);
+
+      // Animate drawing
+      let drawn = 0;
+      const nextNode = () => {
+        if (drawn >= nodes.length) return;
+        const nd = nodes[drawn]; ctx.save();
+        if (nd.type === 'cond') {
+          // Diamond
+          const hw = Math.min(58, W * .13), hh = 22;
+          ctx.beginPath(); ctx.moveTo(nd.x, nd.y - hh); ctx.lineTo(nd.x + hw, nd.y); ctx.lineTo(nd.x, nd.y + hh); ctx.lineTo(nd.x - hw, nd.y); ctx.closePath();
+          ctx.fillStyle = nd.col + '22'; ctx.strokeStyle = nd.col; ctx.lineWidth = 1.5; ctx.shadowColor = nd.col; ctx.shadowBlur = 12; ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+          ctx.fillStyle = nd.col; ctx.font = '10px JetBrains Mono,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          nd.lbl.split('\n').forEach((l, i, a) => ctx.fillText(l, nd.x, nd.y + (i - (a.length - 1) / 2) * 12));
+        } else {
+          const maxW = Math.min(W * .8, nd.type === 'out' ? W * .38 : W * .82);
+          const bh = nd.lbl.includes('\n') ? 38 : 30;
+          ctx.fillStyle = nd.col + '22'; ctx.strokeStyle = nd.col; ctx.lineWidth = 1.5; ctx.shadowColor = nd.col; ctx.shadowBlur = 12;
+          rndRect(ctx, nd.x - maxW / 2, nd.y - bh / 2, maxW, bh, 8); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+          ctx.fillStyle = nd.col; ctx.font = nd.type === 'start' ? 'bold 12px Inter,sans-serif' : '10px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const lines = nd.lbl.split('\n');
+          lines.forEach((l, i, a) => { ctx.font = a.length > 1 && i > 0 ? '9px Inter,sans-serif' : ctx.font; ctx.fillText(l, nd.x, nd.y + (i - (a.length - 1) / 2) * 13); });
+        }
+        ctx.restore(); drawn++; if (drawn < nodes.length - 2) setTimeout(nextNode, 200);
+        else if (drawn === nodes.length - 2) { setTimeout(() => { nextNode(); nextNode(); }, 200); }
+      };
+      nextNode();
+
+      // Draw arrows after nodes appear
+      setTimeout(() => {
+        ctx.save(); ctx.strokeStyle = '#475569'; ctx.fillStyle = '#475569'; ctx.lineWidth = 1;
+        // Down from start through rules to condition
+        for (let i = 0; i < nodes.length - 3; i++) { arw(ctx, nodes[i].x, nodes[i].y + (nodes[i].type === 'start' ? 16 : 14), nodes[i + 1].x, nodes[i + 1].y - (nodes[i + 1].type === 'cond' ? 22 : 14)); }
+        // From condition to YES(loop) and NO(halt)
+        arw(ctx, condNode.x - 30, condNode.y + 22, loopNode.x, loopNode.y - 16);
+        arw(ctx, condNode.x + 30, condNode.y + 22, haltNode.x, haltNode.y - 16);
+        // Labels
+        ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#64748b';
+        ctx.fillText('YES', (condNode.x - 30 + loopNode.x) / 2 - 10, (condNode.y + 22 + loopNode.y - 16) / 2);
+        ctx.fillText('NO', (condNode.x + 30 + haltNode.x) / 2 + 10, (condNode.y + 22 + haltNode.y - 16) / 2);
+        ctx.restore();
+      }, (nodes.length - 2) * 200 + 500);
+    }
+
+    function buildTreeNodes(rx, ry, depth, W, H) {
+      const out = [];
+      function build(x, y, d, px, py) {
+        if (d < 0) return;
+        out.push({ x, y, d, px, py });
+        if (d > 0) { const sp = W * .11 / (depth - d + 2); build(x - sp, y + 64, d - 1, x, y); build(x + sp, y + 64, d - 1, x, y); }
+      }
+      build(rx, ry, depth, rx, ry - 40); return out;
+    }
+    function drawTree(ctx, nodes, col) {
+      nodes.forEach(n => {
+        if (n.px !== n.x) { ctx.save(); ctx.strokeStyle = col + '55'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(n.px, n.py); ctx.lineTo(n.x, n.y); ctx.stroke(); ctx.restore(); }
+        ctx.save(); ctx.fillStyle = col + '22'; ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.shadowColor = col; ctx.shadowBlur = 9;
+        ctx.beginPath(); ctx.arc(n.x, n.y, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+      });
+    }
+
+    function runContradictionArt(onDone) {
+      const cv = $('art-canvas'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+      let phase = 0, fr = 0, parts = [];
+      const PH = [480, 480, 480, 500]; // 8.0 seconds per transition @ 60fps
+      const ACC = '#a855f7';
+
+      const bg = () => { ctx.fillStyle = '#080c14'; ctx.fillRect(0, 0, W, H); };
+
+      // ── Layout constants ────────────────────────────────────────
+      const cx = W / 2, cy = H / 2;
+      const BW = Math.min(120, W * .22), BH = 52;
+
+      // Center D symmetrically
+      const DX = cx, DY = cy - 20;
+      const DW = BW * 3.4, DH = BH * 3.0;
+
+      // H securely on left, FLIP securely on right inside D
+      const HX = cx - BW * .8, HY = cy - 20;
+      const FLIPX = cx + BW * .8, FLIPY = cy - 20;
+
+      // ── Draw helpers ────────────────────────────────────────────
+      function box(x, y, w, h, lbl, col, alpha, sub) {
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.strokeStyle = col; ctx.fillStyle = col + '1a';
+        ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.roundRect(x - w / 2, y - h / 2, w, h, 8); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = col; ctx.shadowBlur = 6;
+        ctx.font = `bold ${Math.min(13, BW * .11)}px Inter,sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(lbl, x, sub ? y - 8 : y);
+        if (sub) { ctx.font = `${Math.min(10, BW * .09)}px Inter,sans-serif`; ctx.globalAlpha = alpha * .7; ctx.fillText(sub, x, y + 9); }
+        ctx.restore();
+      }
+      function arrow(x1, y1, x2, y2, col, alpha, lbl) {
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.strokeStyle = col; ctx.fillStyle = col;
+        ctx.lineWidth = 1.8; ctx.shadowColor = col; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        // arrowhead
+        const ang = Math.atan2(y2 - y1, x2 - x1);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 9 * Math.cos(ang - 0.4), y2 - 9 * Math.sin(ang - 0.4));
+        ctx.lineTo(x2 - 9 * Math.cos(ang + 0.4), y2 - 9 * Math.sin(ang + 0.4));
+        ctx.closePath(); ctx.fill();
+        if (lbl) {
+          ctx.shadowBlur = 0; ctx.font = `${Math.min(10, BW * .09)}px Inter,sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = col;
+          ctx.fillText(lbl, (x1 + x2) / 2, Math.min(y1, y2) - 3);
+        }
+        ctx.restore();
+      }
+      function label(x, y, txt, col, alpha, size) {
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.fillStyle = col; ctx.font = `${size || 11}px Inter,sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = col; ctx.shadowBlur = 6;
+        ctx.fillText(txt, x, y); ctx.restore();
+      }
+
+      // ── Phase renderers ─────────────────────────────────────────
+      function drawH(alpha) {
+        box(HX, HY, BW, BH, 'H', '#3b82f6', alpha, 'Halt Decider');
+        // inputs on left
+        if (alpha > .3) {
+          arrow(DX - DW / 2 - 30, HY - 10, HX - BW * .5, HY - 10, '#64748b', alpha * .8, 'P');
+          arrow(DX - DW / 2 - 30, HY + 10, HX - BW * .5, HY + 10, '#64748b', alpha * .8, 'I');
+        }
+      }
+      function drawD(alpha) {
+        // Outer D box (dashed)
+        ctx.save(); ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]); ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.roundRect(DX - DW / 2, DY - DH / 2, DW, DH, 14);
+        ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#a855f710'; ctx.fill();
+        ctx.restore();
+        label(DX, DY - DH / 2 + 12, 'D  (does opposite of H)', '#a855f7', alpha, 11);
+
+        // FLIP block
+        box(FLIPX, FLIPY, BW * .9, BH * .8, 'FLIP', '#f59e0b', alpha, 'inverts output');
+
+        // H -> FLIP arrows (inside D)
+        const fx1 = HX + BW * .52, fx2 = FLIPX - BW * .48;
+        arrow(fx1, HY - 10, fx2, FLIPY - 10, '#22c55e', alpha * .8, '✓ HALTS');
+        arrow(fx1, HY + 10, fx2, FLIPY + 10, '#ef4444', alpha * .8, '✗ LOOPS');
+
+        // FLIP -> D edge arrows (out right edge)
+        const ox1 = FLIPX + BW * .47, ox2 = DX + DW / 2 + 25;
+        arrow(ox1, FLIPY - 10, ox2, FLIPY - 10, '#a855f7', alpha, 'HALTS');
+        arrow(ox1, FLIPY + 10, ox2, FLIPY + 10, '#a855f7', alpha, 'LOOPS');
+      }
+      function drawSelfLoop(alpha, pulse) {
+        // Curved arrow from D's output looping back into D's input
+        const ox = DX + DW / 2 + 25, oy = FLIPY;
+        const ix = DX - DW / 2 - 30, iy = HY;
+        const cpY = DY + DH / 2 + 48;
+        ctx.save(); ctx.globalAlpha = alpha;
+        const glow = '#ec4899';
+        ctx.strokeStyle = glow; ctx.lineWidth = 2.5;
+        ctx.shadowColor = glow; ctx.shadowBlur = pulse ? 22 : 10;
+        ctx.setLineDash(pulse ? [] : [6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.bezierCurveTo(ox + 20, cpY, ix - 20, cpY, ix, iy);
+        ctx.stroke(); ctx.setLineDash([]);
+        // arrowhead at input
+        arrow(ix + 2, iy - 1, ix, iy, glow, alpha, '');
+        ctx.restore();
+        label(cx, DY + DH / 2 + 52, 'D feeds itself: D(D)', '#ec4899', alpha, 12);
+      }
+
+      // ── Tick ────────────────────────────────────────────────────
+      const tick = () => {
+        bg();
+
+        if (phase === 0) {
+          // Fade in H oracle over 8s
+          const a = Math.min(1, fr / 480);
+          drawH(a);
+          label(cx, HY + DH / 2 + 20,
+            'Suppose H can decide if any program halts…',
+            '#64748b', Math.max(0, Math.min(1, (fr - 160) / 320)), 11);
+          if (++fr >= PH[0]) { phase = 1; fr = 0; }
+
+        } else if (phase === 1) {
+          // H fully shown; fade in D wrapper over 8s
+          drawH(1);
+          const a = Math.min(1, fr / 480);
+          drawD(a);
+          label(cx, HY + DH / 2 + 20,
+            'Construct D: wraps H, does the exact opposite', '#a855f7',
+            Math.max(0, Math.min(1, (fr - 160) / 320)), 11);
+          if (++fr >= PH[1]) { phase = 2; fr = 0; }
+
+        } else if (phase === 2) {
+          drawH(1); drawD(1);
+          // Fade in self-loop over 4s
+          const slAlpha = Math.min(1, fr / 240);
+          drawSelfLoop(slAlpha, fr > 240);
+
+          // Without shudder: simply fade in the contradiction warnings over the last 4s
+          const cf = Math.max(0, Math.min(1, (fr - 240) / 240));
+          if (cf > 0) {
+            label(cx, DY - DH / 2 - 36, '⚡ D(D) halts ↔ D(D) loops', '#ef4444', cf, 13);
+            label(cx, DY - DH / 2 - 16, 'Both outcomes contradict each other', '#ef4444', cf * .7, 10);
+          }
+          if (++fr >= PH[2]) { phase = 3; fr = 0; }
+
+        } else if (phase === 3) {
+          // Fade diagram out quickly to a black background (over 1s)
+          const fadeOut = Math.max(0, 1 - fr / 60);
+          if (fadeOut > 0) {
+            drawH(fadeOut); drawD(fadeOut);
+            drawSelfLoop(fadeOut, true);
+            label(cx, DY - DH / 2 - 36, '⚡ D(D) halts ↔ D(D) loops', '#ef4444', fadeOut, 13);
+            label(cx, DY - DH / 2 - 16, 'Both outcomes contradict each other', '#ef4444', fadeOut * 0.7, 10);
+          }
+
+          // Reveal UNDECIDABLE letter by letter smoothly over 2s
+          const txt = 'UNDECIDABLE';
+          const prog = Math.min(1, fr / 120), nc = Math.floor(prog * txt.length);
+          const fs = Math.max(18, Math.floor(W / 11));
+          ctx.save(); ctx.textBaseline = 'middle';
+          const cw = fs * .7, totW = txt.length * cw, sx = W / 2 - totW / 2 + cw / 2;
+          for (let i = 0; i < nc; i++) {
+            const cp = Math.min(1, (fr - i * 10) / 30);
+            ctx.globalAlpha = cp; ctx.font = `bold ${fs}px Inter,sans-serif`;
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+            ctx.shadowColor = '#fff'; ctx.shadowBlur = 16;
+            ctx.fillText(txt[i], sx + i * cw, H / 2);
+          }
+          ctx.restore();
+
+          if (fr > 120) {
+            const qa = Math.min(1, (fr - 120) / 80);
+            label(cx, H / 2 + fs + 14, 'No algorithm can decide halting for all programs. — Turing, 1936',
+              '#cbd5e1', qa, 10);
+          }
+
+          if (++fr >= PH[3]) { onDone && onDone(); return; }
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+
+    function showProof() {
+      const box = $('proof-box'); box.style.display = 'block'; box.className = 'show'; box.innerHTML = '';
+      // Safe rule labeling — always produce valid text regardless of selection count
+      const rCount = selRules.length;
+      const ruleNames = rCount > 0
+        ? selRules.map((r, i) => `Rule ${i + 1}: "${r.txt.split('→')[0].replace('If ', '').trim()}"`).join('; ')
+        : '(default: checking if halt node is reachable)';
+      const hDesc = rCount === 1
+        ? `1 rule — ${selRules[0].txt.split('→')[0].replace('If ', '').trim()}`
+        : `${rCount} rules — ${selRules.map(r => r.txt.split('→')[0].replace('If ', '').trim().substring(0, 22)).join(' + ')}`;
+      const lines = [
+        { t: `> H detector you built: ${hDesc}`, k: false },
+        { t: `> For each input P, H(P,x) applies your ${rCount || 1} rule${rCount !== 1 ? 's' : ''} and answers HALTS or LOOPS.`, k: false },
+        { t: `> Now construct Program D(x):`, k: false },
+        { t: `>   Step 1 — Run H(x, x)  [detector reads itself as input]`, k: false },
+        { t: `>   Step 2 — If H says HALTS  →  D loops forever (does opposite)`, k: false },
+        { t: `>   Step 3 — If H says LOOPS  →  D halts immediately (does opposite)`, k: false },
+        { t: `> Assume H is correct for ALL programs including D.`, k: false },
+        { t: `> Run D on itself — ask: does D(D) halt?`, k: true },
+        { t: `>   If D(D) halts  →  H(D,D) said LOOPS  →  D(D) must loop.  ✗`, k: false },
+        { t: `>   If D(D) loops  →  H(D,D) said HALTS  →  D(D) must halt.  ✗`, k: false },
+        { t: `> Both cases are contradictions. H cannot exist.`, k: true, contra: true },
+        { t: `> No algorithm can decide halting for all programs. — Turing, 1936`, k: false },
+      ];
+      lines.forEach(l => {
+        const d = document.createElement('div');
+        d.className = 'pline' + (l.k ? ' key' : '') + (l.contra ? ' contra' : '');
+        d.textContent = l.t; box.appendChild(d);
+      });
+      const els = box.querySelectorAll('.pline');
+      els.forEach((el, i) => setTimeout(() => {
+        el.classList.add('vis');
+        if (i === els.length - 1) setTimeout(() => { $('esc-wrap').style.display = 'block'; }, 900);
+      }, i * 750));
+    }
+
+    // ============================================================
+    // PORTRAIT
+    // ============================================================
+    function showPortrait() {
+      $('portrait').classList.add('show'); accentCSS('#22c55e');
+      const c = PT.correct(), b = PT.s.best, t = PT.s.total;
+      $('ps-c').textContent = c;
+      $('ps-a').textContent = `${Math.round((c / 6) * 100)}%`;
+      $('ps-s').textContent = b;
+      $('ps-t').textContent = t.toLocaleString();
+      // Render after a brief paint delay so the canvas is visible
+      requestAnimationFrame(() => renderPortrait($('portrait-canvas'), lvlResults));
+    }
+    function exportPortrait() {
+      const pc = $('portrait-canvas');
+      const offc = document.createElement('canvas');
+      offc.width = pc.width; offc.height = pc.height + 140;
+      const ctx = offc.getContext('2d');
+
+      ctx.fillStyle = '#080c14'; ctx.fillRect(0, 0, offc.width, offc.height);
+      ctx.drawImage(pc, 0, 0);
+
+      ctx.fillStyle = '#f8fafc'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.font = 'bold 20px Inter,sans-serif';
+      const c = PT.correct(), t = PT.s.total, st = PT.s.best;
+      const acc = Math.round((c / 6) * 100) + '%';
+
+      const statText = `Correct: ${c}/6   |   Accuracy: ${acc}   |   Best Streak: ${st}   |   Total Steps: ${t.toLocaleString()}`;
+      ctx.fillText(statText, offc.width / 2, pc.height + 40);
+
+      ctx.fillStyle = '#64748b'; ctx.font = '15px Inter,sans-serif';
+      ctx.fillText("The Halting Problem — Computational Portrait", offc.width / 2, pc.height + 80);
+
+      const a = document.createElement('a'); a.download = 'computational-portrait.png';
+      a.href = offc.toDataURL('image/png'); a.click();
+    }
+    function exportArt() { const lv = LEVELS[curLvlIdx]; const a = document.createElement('a'); a.download = `level${lv.id}-signature.png`; a.href = $('art-canvas').toDataURL('image/png'); a.click(); }
+
+    // ============================================================
+    // INTRO ANIMATION
+    // ============================================================
+    function animIntro() {
+      const cv = $('ibg'); if (!cv) return;
+      cv.width = window.innerWidth; cv.height = window.innerHeight;
+      const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+      const accs = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ec4899', '#ef4444', '#fff'];
+      const pts = Array.from({ length: 72 }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .45, vy: (Math.random() - .5) * .45, r: Math.random() * 2 + .6, c: accs[i % 7] }));
+      const tick = () => {
+        if ($('intro').classList.contains('gone')) return;
+        ctx.fillStyle = 'rgba(8,12,20,.14)'; ctx.fillRect(0, 0, W, H);
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i]; p.x += p.vx; p.y += p.vy; if (p.x < 0) p.x = W; if (p.x > W) p.x = 0; if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = p.c + '90'; ctx.fill();
+          for (let j = i + 1; j < pts.length; j++) {
+            const q = pts[j], dx = p.x - q.x, dy = p.y - q.y, d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 85) { ctx.strokeStyle = `rgba(100,116,139,${(1 - d / 85) * .2})`; ctx.lineWidth = .5; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+          }
+        }
+        requestAnimationFrame(tick);
+      }; tick();
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    function startApp() {
+      $('intro').classList.add('gone');
+      requestAnimationFrame(() => requestAnimationFrame(() => loadLevel(0)));
+      window.addEventListener('resize', () => { resizeCanvas(); if (LEVELS[curLvlIdx].prog && fcr) fcr.load(LEVELS[curLvlIdx].prog, LEVELS[curLvlIdx].accent); });
+
+      // fc-canvas wheel events removed — native DOM scroll on #fc-canvas-wrap handles scrolling
+      // Drag-to-pan still works for fine navigation within the virtual canvas
+      const fc = $('fc-canvas');
+
+      let _drag = false, _lx = 0, _ly = 0;
+
+      fc.addEventListener('mousedown', (e) => { _drag = true; _lx = e.clientX; _ly = e.clientY; fc.style.cursor = 'grabbing'; });
+      window.addEventListener('mousemove', (e) => {
+        if (!_drag || !fcr) return;
+        fcr.panX += e.clientX - _lx; fcr.panY += e.clientY - _ly;
+        _lx = e.clientX; _ly = e.clientY;
+        fcr.draw();
+      });
+      window.addEventListener('mouseup', () => { _drag = false; fc.style.cursor = 'grab'; });
+
+      // Double-click resets view
+      fc.addEventListener('dblclick', () => { if (fcr) { fcr.resetView(); fcr.draw(); } });
+    }
+    $('start-btn').addEventListener('click', startApp);
+    animIntro(); updSB();
+  </script>
+</body>
+
+</html>
