@@ -1839,7 +1839,10 @@
       }
       _sieve(d, W, H, x) {
         const { cx } = this, s = this._s, cols = s.cols, dh = 13;
-        const col = ((x - 2) % cols + cols) % cols, row = Math.floor((x - 2) / cols) % (Math.floor(H / dh) || 1);
+        const maxRows = Math.floor(H / dh) || 1;
+        const row = Math.floor((x - 2) / cols);
+        if (row >= maxRows) return; // Stop drawing when it hits the bottom
+        const col = ((x - 2) % cols + cols) % cols;
         const px = (col / cols) * W + W / cols / 2, py = row * dh + dh / 2, prime = isPrime(x);
         cx.save(); cx.globalAlpha = prime ? .95 : .18; cx.fillStyle = prime ? '#f59e0b' : '#1e293b';
         if (prime) { cx.shadowColor = '#f59e0b'; cx.shadowBlur = 10; }
